@@ -3,36 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.4</title>
+    <title>Физика шарика v3.5</title>
     <style>
         body { 
-            margin: 0; overflow: hidden; background: #2c3e50; 
+            margin: 0; overflow: hidden; background: #1a1a1a; 
             font-family: sans-serif; touch-action: none; 
+            height: 100dvh; /* Используем динамическую высоту */
         }
         #field { 
-            width: 100vw; height: 100vh; position: relative;
-            box-sizing: border-box; border: 8px solid #34495e;
+            width: 100vw; 
+            height: 100dvh; 
+            position: relative;
+            box-sizing: border-box; 
+            border: 8px solid #444;
+            background: #222;
         }
         #ball {
             width: 40px; height: 40px;
-            background: radial-gradient(circle at 12px 12px, #2ecc71, #27ae60);
+            background: radial-gradient(circle at 12px 12px, #f1c40f, #f39c12); /* Золотой шарик */
             border-radius: 50%; position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             will-change: transform;
-            /* Начальное положение в центре внутреннего поля */
             left: 0; top: 0;
         }
         #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
         button { 
             padding: 18px 36px; font-size: 18px; border-radius: 50px; 
-            border: none; background: #ecf0f1; color: #2c3e50; 
-            font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: none; background: #eee; color: #1a1a1a; 
+            font-weight: bold; cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui"><button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.4)</button></div>
+    <div id="ui"><button id="startBtn">ЗАПУСТИТЬ (v3.5)</button></div>
 
     <div id="field">
         <div id="ball"></div>
@@ -43,22 +47,26 @@
         const ball = document.getElementById('ball');
         const startBtn = document.getElementById('startBtn');
         
-        // Внутренние размеры поля (без рамок)
         let w, h;
-        const r = 20; // Радиус шарика
+        const r = 20; 
         
         let x, y, vx = 0, vy = 0, ax = 0, ay = 0;
         const friction = 0.98;
         const sensitivity = 0.08;
 
         function updateSize() {
+            // Берем высоту клиентской области, которую выделил браузер
             w = field.clientWidth;
             h = field.clientHeight;
-            x = w / 2;
-            y = h / 2;
+            
+            // Если шарик еще не создан или за пределами после ресайза — центрируем
+            if (!x || x > w) x = w / 2;
+            if (!y || y > h) y = h / 2;
         }
 
-        window.addEventListener('resize', updateSize);
+        window.addEventListener('resize', () => {
+            setTimeout(updateSize, 100); // Небольшая задержка для Edge
+        });
         updateSize();
 
         startBtn.addEventListener('click', async () => {
@@ -77,22 +85,17 @@
             animate();
         }
 
-        function vibrate(speed) {
-            if (navigator.vibrate && Math.abs(speed) > 1.0) navigator.vibrate(15);
-        }
-
         function animate() {
             vx += ax; vy += ay;
             vx *= friction; vy *= friction;
             x += vx; y += vy;
 
-            // Теперь границы считаются от 0 до w/h внутреннего пространства
-            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
-            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
-            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
-            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
+            // Проверка границ
+            if (x < r) { x = r; vx *= -0.6; }
+            if (x > w - r) { x = w - r; vx *= -0.6; }
+            if (y < r) { y = r; vy *= -0.6; }
+            if (y > h - r) { y = h - r; vy *= -0.6; }
 
-            // Отрисовка: x и y — это центр, поэтому вычитаем радиус
             ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             requestAnimationFrame(animate);
         }
