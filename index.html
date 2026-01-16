@@ -3,40 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.5</title>
+    <title>Физика шарика v3.6</title>
     <style>
         body { 
             margin: 0; overflow: hidden; background: #1a1a1a; 
             font-family: sans-serif; touch-action: none; 
-            height: 100dvh; /* Используем динамическую высоту */
+            height: 100dvh;
         }
         #field { 
-            width: 100vw; 
-            height: 100dvh; 
-            position: relative;
-            box-sizing: border-box; 
-            border: 8px solid #444;
+            width: 100vw; height: 100dvh; position: relative;
+            box-sizing: border-box; border: 8px solid #444;
             background: #222;
         }
         #ball {
             width: 40px; height: 40px;
-            background: radial-gradient(circle at 12px 12px, #f1c40f, #f39c12); /* Золотой шарик */
+            background: radial-gradient(circle at 12px 12px, #f1c40f, #f39c12);
             border-radius: 50%; position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             will-change: transform;
             left: 0; top: 0;
         }
-        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; }
         button { 
             padding: 18px 36px; font-size: 18px; border-radius: 50px; 
             border: none; background: #eee; color: #1a1a1a; 
             font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
         }
+        .info { color: #888; margin-top: 10px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <div id="ui"><button id="startBtn">ЗАПУСТИТЬ (v3.5)</button></div>
+    <div id="ui">
+        <button id="startBtn">ИГРАТЬ (v3.6)</button>
+        <p class="info">Перейдет в полный экран и включит вибрацию</p>
+    </div>
 
     <div id="field">
         <div id="ball"></div>
@@ -49,35 +51,41 @@
         
         let w, h;
         const r = 20; 
-        
         let x, y, vx = 0, vy = 0, ax = 0, ay = 0;
         const friction = 0.98;
         const sensitivity = 0.08;
 
         function updateSize() {
-            // Берем высоту клиентской области, которую выделил браузер
             w = field.clientWidth;
             h = field.clientHeight;
-            
-            // Если шарик еще не создан или за пределами после ресайза — центрируем
-            if (!x || x > w) x = w / 2;
-            if (!y || y > h) y = h / 2;
+            if (!x) { x = w / 2; y = h / 2; }
         }
 
         window.addEventListener('resize', () => {
-            setTimeout(updateSize, 100); // Небольшая задержка для Edge
+            setTimeout(updateSize, 300); // Задержка, чтобы браузер успел перерисовать UI
         });
-        updateSize();
 
         startBtn.addEventListener('click', async () => {
+            // 1. Пытаемся войти в полноэкранный режим
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+
+            // 2. Запрос датчиков
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const res = await DeviceOrientationEvent.requestPermission();
                 if (res === 'granted') init();
             } else { init(); }
+
             startBtn.style.display = 'none';
+            document.querySelector('.info').style.display = 'none';
+            
+            // Пересчитываем размер после скрытия панелей браузера
+            setTimeout(updateSize, 500);
         });
 
         function init() {
+            updateSize();
             window.addEventListener('deviceorientation', (e) => {
                 ax = e.gamma * sensitivity;
                 ay = e.beta * sensitivity;
@@ -85,16 +93,23 @@
             animate();
         }
 
+        function vibrate(speed) {
+            // Возвращаем вибрацию при ударе сильнее порога
+            if (navigator.vibrate && Math.abs(speed) > 1.2) {
+                navigator.vibrate(20);
+            }
+        }
+
         function animate() {
             vx += ax; vy += ay;
             vx *= friction; vy *= friction;
             x += vx; y += vy;
 
-            // Проверка границ
-            if (x < r) { x = r; vx *= -0.6; }
-            if (x > w - r) { x = w - r; vx *= -0.6; }
-            if (y < r) { y = r; vy *= -0.6; }
-            if (y > h - r) { y = h - r; vy *= -0.6; }
+            // СТОЛКНОВЕНИЯ С ВИБРАЦИЕЙ
+            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
+            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
+            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
+            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
 
             ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             requestAnimationFrame(animate);
