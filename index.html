@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.2</title>
+    <title>Физика шарика v3.3</title>
     <style>
         body { 
             margin: 0; 
@@ -16,11 +16,12 @@
             width: 100vw; height: 100vh; 
             position: relative;
             box-sizing: border-box;
+            /* ВАЖНО: Толщина этой рамки должна учитываться в JS */
             border: 8px solid #34495e;
         }
         #ball {
             width: 40px; height: 40px;
-            background: radial-gradient(circle at 12px 12px, #3498db, #2980b9); /* Сменил цвет на синий для разнообразия */
+            background: radial-gradient(circle at 12px 12px, #2ecc71, #27ae60); /* Зеленый цвет */
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -41,7 +42,7 @@
 <body>
 
     <div id="ui">
-        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.2)</button>
+        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.3)</button>
     </div>
 
     <div id="field">
@@ -59,7 +60,11 @@
 
         const friction = 0.98; 
         const sensitivity = 0.08;
-        const vThreshold = 1.0; // Порог скорости для вибрации
+        const vThreshold = 1.0; // Порог вибрации
+
+        // ВАЖНО: Константы размеров для точности
+        const r = 20; // Радиус шарика
+        const border = 8; // Толщина рамки из CSS
 
         startBtn.addEventListener('click', async () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -80,7 +85,6 @@
         }
 
         function vibrate(speed) {
-            // Вибрируем только если скорость удара выше порога
             if (navigator.vibrate && Math.abs(speed) > vThreshold) {
                 navigator.vibrate(15);
             }
@@ -92,22 +96,41 @@
             vx *= friction;
             vy *= friction;
             
-            // "Мертвая зона" для остановки микро-движений
             if (Math.abs(vx) < 0.01) vx = 0;
             if (Math.abs(vy) < 0.01) vy = 0;
 
             x += vx;
             y += vy;
 
-            const r = 20;
             const w = window.innerWidth;
             const h = window.innerHeight;
 
-            // Границы с проверкой скорости перед вибрацией
-            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
-            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
-            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
-            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
+            // ИСПРАВЛЕННАЯ ЛОГИКА ГРАНИЦ (с учетом рамки)
+            
+            // Лево: радиус + рамка
+            if (x < r + border) { 
+                vibrate(vx); 
+                x = r + border; 
+                vx *= -0.6; 
+            }
+            // Право: ширина - радиус - рамка
+            if (x > w - r - border) { 
+                vibrate(vx); 
+                x = w - r - border; 
+                vx *= -0.6; 
+            }
+            // Верх: радиус + рамка
+            if (y < r + border) { 
+                vibrate(vy); 
+                y = r + border; 
+                vy *= -0.6; 
+            }
+            // Низ: высота - радиус - рамка
+            if (y > h - r - border) { 
+                vibrate(vy); 
+                y = h - r - border; 
+                vy *= -0.6; 
+            }
 
             ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             requestAnimationFrame(animate);
