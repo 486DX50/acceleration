@@ -3,59 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.1</title>
+    <title>Физика шарика v3.2</title>
     <style>
         body { 
             margin: 0; 
             overflow: hidden; 
             background: #2c3e50; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: sans-serif;
             touch-action: none; 
         }
         #field { 
-            width: 100vw; 
-            height: 100vh; 
+            width: 100vw; height: 100vh; 
             position: relative;
             box-sizing: border-box;
-            border: 8px solid #34495e; /* Чуть толще рамка для стиля */
+            border: 8px solid #34495e;
         }
         #ball {
             width: 40px; height: 40px;
-            background: radial-gradient(circle at 12px 12px, #e74c3c, #c0392b);
+            background: radial-gradient(circle at 12px 12px, #3498db, #2980b9); /* Сменил цвет на синий для разнообразия */
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             will-change: transform;
         }
         #ui { 
-            position: absolute; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            z-index: 10; 
-            text-align: center;
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); z-index: 10; 
         }
         button { 
-            padding: 18px 36px; 
-            font-size: 18px; 
-            border-radius: 50px; 
-            border: none; 
-            background: #ecf0f1; 
-            color: #2c3e50; 
-            font-weight: bold; 
-            cursor: pointer;
+            padding: 18px 36px; font-size: 18px; border-radius: 50px; 
+            border: none; background: #ecf0f1; color: #2c3e50; 
+            font-weight: bold; cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        button:active {
-            transform: scale(0.95);
         }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.1)</button>
+        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.2)</button>
     </div>
 
     <div id="field">
@@ -66,49 +52,37 @@
         const ball = document.getElementById('ball');
         const startBtn = document.getElementById('startBtn');
         
-        // Физические параметры
         let x = window.innerWidth / 2;
         let y = window.innerHeight / 2;
-        let vx = 0; 
-        let vy = 0; 
-        let ax = 0; 
-        let ay = 0; 
+        let vx = 0; let vy = 0; 
+        let ax = 0; let ay = 0; 
 
         const friction = 0.98; 
-        const sensitivity = 0.08; 
+        const sensitivity = 0.08;
+        const vThreshold = 1.0; // Порог скорости для вибрации
 
         startBtn.addEventListener('click', async () => {
-            // Запрос прав для iOS 13+
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const response = await DeviceOrientationEvent.requestPermission();
-                    if (response === 'granted') {
-                        init();
-                    } else {
-                        alert('Доступ к сенсорам отклонен');
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === 'granted') init();
             } else {
-                // Для Android и старых браузеров
                 init();
             }
             startBtn.style.display = 'none';
         });
 
         function init() {
-            window.addEventListener('deviceorientation', (event) => {
-                // Инвертируем или корректируем значения при необходимости
-                ax = event.gamma * sensitivity;
-                ay = event.beta * sensitivity;
+            window.addEventListener('deviceorientation', (e) => {
+                ax = e.gamma * sensitivity;
+                ay = e.beta * sensitivity;
             });
             animate();
         }
 
-        function vibrate() {
-            if (navigator.vibrate) {
-                navigator.vibrate(15); // Короткий "тык" при ударе
+        function vibrate(speed) {
+            // Вибрируем только если скорость удара выше порога
+            if (navigator.vibrate && Math.abs(speed) > vThreshold) {
+                navigator.vibrate(15);
             }
         }
 
@@ -117,38 +91,25 @@
             vy += ay;
             vx *= friction;
             vy *= friction;
+            
+            // "Мертвая зона" для остановки микро-движений
+            if (Math.abs(vx) < 0.01) vx = 0;
+            if (Math.abs(vy) < 0.01) vy = 0;
+
             x += vx;
             y += vy;
 
-            const radius = 20;
-            const width = window.innerWidth;
-            const height = window.innerHeight;
+            const r = 20;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
 
-            // Логика границ с отскоком
-            if (x < radius) { 
-                x = radius; 
-                vx *= -0.6; // Немного увеличил силу отскока
-                vibrate();
-            }
-            if (x > width - radius) { 
-                x = width - radius; 
-                vx *= -0.6; 
-                vibrate();
-            }
-            if (y < radius) { 
-                y = radius; 
-                vy *= -0.6; 
-                vibrate();
-            }
-            if (y > height - radius) { 
-                y = height - radius; 
-                vy *= -0.6; 
-                vibrate();
-            }
+            // Границы с проверкой скорости перед вибрацией
+            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
+            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
+            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
+            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
 
-            // Отрисовка через transform для максимальной производительности
-            ball.style.transform = `translate(${x - radius}px, ${y - radius}px)`;
-
+            ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             requestAnimationFrame(animate);
         }
     </script>
