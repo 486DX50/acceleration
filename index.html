@@ -3,23 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.0</title>
+    <title>Физика шарика v3.1</title>
     <style>
         body { 
             margin: 0; 
             overflow: hidden; 
             background: #2c3e50; 
-            font-family: sans-serif;
-            /* Важно: отключаем жесты браузера, чтобы страница не прыгала */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             touch-action: none; 
         }
         #field { 
             width: 100vw; 
             height: 100vh; 
             position: relative;
-            /* Добавим рамку, чтобы видеть границы */
             box-sizing: border-box;
-            border: 5px solid #34495e;
+            border: 8px solid #34495e; /* Чуть толще рамка для стиля */
         }
         #ball {
             width: 40px; height: 40px;
@@ -27,16 +25,37 @@
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            will-change: transform; /* Оптимизация для плавности */
+            will-change: transform;
         }
-        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
-        button { padding: 15px 30px; font-size: 20px; border-radius: 50px; border: none; background: #ecf0f1; color: #2c3e50; font-weight: bold; cursor: pointer; }
+        #ui { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            z-index: 10; 
+            text-align: center;
+        }
+        button { 
+            padding: 18px 36px; 
+            font-size: 18px; 
+            border-radius: 50px; 
+            border: none; 
+            background: #ecf0f1; 
+            color: #2c3e50; 
+            font-weight: bold; 
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <button id="startBtn">ЗАПУСТИТЬ ШАРИК</button>
+        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.1)</button>
     </div>
 
     <div id="field">
@@ -47,6 +66,7 @@
         const ball = document.getElementById('ball');
         const startBtn = document.getElementById('startBtn');
         
+        // Физические параметры
         let x = window.innerWidth / 2;
         let y = window.innerHeight / 2;
         let vx = 0; 
@@ -55,15 +75,23 @@
         let ay = 0; 
 
         const friction = 0.98; 
-        const sensitivity = 0.08; // Немного увеличил для бодрости
+        const sensitivity = 0.08; 
 
         startBtn.addEventListener('click', async () => {
+            // Запрос прав для iOS 13+
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    init();
+                try {
+                    const response = await DeviceOrientationEvent.requestPermission();
+                    if (response === 'granted') {
+                        init();
+                    } else {
+                        alert('Доступ к сенсорам отклонен');
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
             } else {
+                // Для Android и старых браузеров
                 init();
             }
             startBtn.style.display = 'none';
@@ -71,6 +99,7 @@
 
         function init() {
             window.addEventListener('deviceorientation', (event) => {
+                // Инвертируем или корректируем значения при необходимости
                 ax = event.gamma * sensitivity;
                 ay = event.beta * sensitivity;
             });
@@ -78,9 +107,8 @@
         }
 
         function vibrate() {
-            // Вибрируем 10 миллисекунд (работает на Android)
             if (navigator.vibrate) {
-                navigator.vibrate(10);
+                navigator.vibrate(15); // Короткий "тык" при ударе
             }
         }
 
@@ -96,32 +124,29 @@
             const width = window.innerWidth;
             const height = window.innerHeight;
 
-            // ИСПРАВЛЕННАЯ ЛОГИКА ГРАНИЦ
-            // Лево
+            // Логика границ с отскоком
             if (x < radius) { 
                 x = radius; 
-                vx *= -0.5; 
+                vx *= -0.6; // Немного увеличил силу отскока
                 vibrate();
             }
-            // Право
             if (x > width - radius) { 
                 x = width - radius; 
-                vx *= -0.5; 
+                vx *= -0.6; 
                 vibrate();
             }
-            // Верх
             if (y < radius) { 
                 y = radius; 
-                vy *= -0.5; 
+                vy *= -0.6; 
                 vibrate();
             }
-            // Низ (вот здесь была ошибка!)
             if (y > height - radius) { 
                 y = height - radius; 
-                vy *= -0.5; 
+                vy *= -0.6; 
                 vibrate();
             }
 
+            // Отрисовка через transform для максимальной производительности
             ball.style.transform = `translate(${x - radius}px, ${y - radius}px)`;
 
             requestAnimationFrame(animate);
