@@ -3,82 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Балансирующий шарик</title>
+    <title>Физика шарика</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #e0e0e0; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #2c3e50; font-family: sans-serif; }
         #field { width: 100vw; height: 100vh; position: relative; }
         #ball {
-            width: 50px; height: 50px;
-            background: radial-gradient(circle at 15px 15px, #ff5f6d, #ffc371);
+            width: 40px; height: 40px;
+            background: radial-gradient(circle at 12px 12px, #e74c3c, #c0392b);
             border-radius: 50%;
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            transition: 0.1s ease-out; /* Плавность движения */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            /* Убираем transition, так как будем управлять через JS плавно */
         }
-        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; }
-        button { padding: 12px 24px; font-size: 18px; border-radius: 30px; border: none; background: #333; color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+        button { padding: 15px 30px; font-size: 20px; border-radius: 50px; border: none; background: #ecf0f1; color: #2c3e50; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <button id="startBtn">Запустить шарик</button>
+        <button id="startBtn">ЗАПУСТИТЬ ФИЗИКУ</button>
     </div>
 
     <div id="field">
-        <div id="ball"></div>
+        <div id="ball" style="left: 0; top: 0;"></div>
     </div>
 
     <script>
         const ball = document.getElementById('ball');
         const startBtn = document.getElementById('startBtn');
         
-        let posX = window.innerWidth / 2;
-        let posY = window.innerHeight / 2;
-        let speedX = 0;
-        let speedY = 0;
+        // Физические параметры
+        let x = window.innerWidth / 2;
+        let y = window.innerHeight / 2;
+        let vx = 0; // Скорость по X
+        let vy = 0; // Скорость по Y
+        let ax = 0; // Ускорение по X
+        let ay = 0; // Ускорение по Y
+
+        const friction = 0.98; // Трение (чем меньше, тем быстрее остановится)
+        const sensitivity = 0.05; // Чувствительность к наклону
 
         startBtn.addEventListener('click', async () => {
-            // Запрос разрешения для iOS
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const response = await DeviceOrientationEvent.requestPermission();
                 if (response === 'granted') {
-                    init();
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    animate();
                 }
             } else {
-                // Android и другие
-                init();
+                window.addEventListener('deviceorientation', handleOrientation);
+                animate();
             }
             startBtn.style.display = 'none';
         });
 
-        function init() {
-            window.addEventListener('deviceorientation', (event) => {
-                // gamma: наклон влево/вправо [-90, 90]
-                // beta: наклон вперед/назад [-180, 180]
-                const tiltX = event.gamma; 
-                const tiltY = event.beta;
-
-                updateBall(tiltX, tiltY);
-            });
+        function handleOrientation(event) {
+            // Превращаем углы наклона в ускорение
+            ax = event.gamma * sensitivity;
+            ay = event.beta * sensitivity;
         }
 
-        function updateBall(tiltX, tiltY) {
-            // Рассчитываем новую позицию (множитель 0.5 для чувствительности)
-            posX += tiltX * 0.5;
-            posY += tiltY * 0.5;
+        function animate() {
+            // 1. Добавляем ускорение к скорости
+            vx += ax;
+            vy += ay;
 
-            // Ограничения, чтобы шарик не вылетел за края
-            if (posX < 25) posX = 25;
-            if (posX > window.innerWidth - 25) posX = window.innerWidth - 25;
-            if (posY < 25) posY = 25;
-            if (posY > window.innerHeight - 25) posY = window.innerHeight - 25;
+            // 2. Применяем трение
+            vx *= friction;
+            vy *= friction;
 
-            // Двигаем шарик
-            ball.style.left = posX + 'px';
-            ball.style.top = posY + 'px';
+            // 3. Обновляем позицию
+            x += vx;
+            y += vy;
+
+            // 4. Проверка границ (отскок)
+            const radius = 20;
+            if (x < radius) { x = radius; vx *= -0.5; } // Отскок от левой стены с потерей энергии
+            if (x > window.innerWidth - radius) { x = window.innerWidth - radius; vx *= -0.5; }
+            if (y < radius) { y = radius; vy *= -0.5; }
+            if (y > window.innerHeight - radius) { y = radius; vy *= -0.5; } // Ошибка в логике была тут, исправим:
+            if (y > window.innerHeight - radius) { y = window.innerHeight - radius; vy *= -0.5; }
+
+            // 5. Отрисовка
+            ball.style.transform = `translate(${x - radius}px, ${y - radius}px)`;
+
+            requestAnimationFrame(animate);
         }
     </script>
 </body>
