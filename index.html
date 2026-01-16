@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.8</title>
+    <title>Физика шарика v3.9</title>
     <style>
         * { box-sizing: border-box; }
         body, html { 
@@ -13,6 +13,7 @@
         }
         #field { 
             width: 100vw; height: 100vh; position: relative;
+            /* Рамка теперь только визуальный барьер */
             border: 8px solid #444; background: #222;
         }
         #ball {
@@ -40,7 +41,7 @@
     <button id="stopBtn">ВЫХОД</button>
 
     <div id="ui">
-        <button id="startBtn">ИГРАТЬ (v3.8)</button>
+        <button id="startBtn">ИГРАТЬ (v3.9)</button>
     </div>
 
     <div id="field">
@@ -60,11 +61,10 @@
         const sensitivity = 0.08;
 
         function updateSize() {
-            // Используем window.innerHeight для максимальной точности в Fullscreen
-            w = window.innerWidth;
-            h = window.innerHeight;
+            // clientWidth/Height игнорируют рамки, давая нам только "игровую зону"
+            w = field.clientWidth;
+            h = field.clientHeight;
             
-            // Если шарик еще не инициализирован — ставим в центр
             if (x === undefined) {
                 x = w / 2;
                 y = h / 2;
@@ -75,8 +75,7 @@
             if (!document.fullscreenElement) {
                 stopGame();
             } else {
-                // Важно: пересчитываем размер ПОСЛЕ входа в полный экран
-                setTimeout(updateSize, 300);
+                setTimeout(updateSize, 400); // Ждем скрытия панелей
             }
         });
 
@@ -104,9 +103,7 @@
             stopBtn.style.display = 'block';
             window.addEventListener('deviceorientation', handleMotion);
             animate();
-            
-            // Дополнительный пересчет через полсекунды для гарантии
-            setTimeout(updateSize, 500);
+            setTimeout(updateSize, 600);
         }
 
         function stopGame() {
@@ -115,7 +112,7 @@
             ball.style.display = 'none';
             startBtn.parentElement.style.display = 'block';
             stopBtn.style.display = 'none';
-            x = undefined; // Сброс позиции для следующего запуска
+            x = undefined;
         }
 
         function handleMotion(e) {
@@ -132,19 +129,18 @@
             vx *= friction; vy *= friction;
             x += vx; y += vy;
 
-            // Границы с учетом рамок (8px) и радиуса (20px)
-            const border = 8;
-            if (x < r + border) { vibrate(vx); x = r + border; vx *= -0.6; }
-            if (x > w - r - border) { vibrate(vx); x = w - r - border; vx *= -0.6; }
-            if (y < r + border) { vibrate(vy); y = r + border; vy *= -0.6; }
-            if (y > h - r - border) { vibrate(vy); y = h - r - border; vy *= -0.6; }
+            // ИДЕАЛЬНЫЕ ГРАНИЦЫ (координаты 0..w и 0..h внутри поля)
+            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
+            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
+            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
+            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
 
+            // Вычитаем радиус только для отрисовки, так как translate двигает левый верхний угол
             ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             animationID = requestAnimationFrame(animate);
         }
 
-        // Обновление при повороте экрана
-        window.addEventListener('resize', updateSize);
+        window.addEventListener('resize', () => setTimeout(updateSize, 200));
     </script>
 </body>
 </html>
