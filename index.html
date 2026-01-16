@@ -3,76 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Физика шарика v3.3</title>
+    <title>Физика шарика v3.4</title>
     <style>
         body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: #2c3e50; 
-            font-family: sans-serif;
-            touch-action: none; 
+            margin: 0; overflow: hidden; background: #2c3e50; 
+            font-family: sans-serif; touch-action: none; 
         }
         #field { 
-            width: 100vw; height: 100vh; 
-            position: relative;
-            box-sizing: border-box;
-            /* ВАЖНО: Толщина этой рамки должна учитываться в JS */
-            border: 8px solid #34495e;
+            width: 100vw; height: 100vh; position: relative;
+            box-sizing: border-box; border: 8px solid #34495e;
         }
         #ball {
             width: 40px; height: 40px;
-            background: radial-gradient(circle at 12px 12px, #2ecc71, #27ae60); /* Зеленый цвет */
-            border-radius: 50%;
-            position: absolute;
+            background: radial-gradient(circle at 12px 12px, #2ecc71, #27ae60);
+            border-radius: 50%; position: absolute;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             will-change: transform;
+            /* Начальное положение в центре внутреннего поля */
+            left: 0; top: 0;
         }
-        #ui { 
-            position: absolute; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%); z-index: 10; 
-        }
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
         button { 
             padding: 18px 36px; font-size: 18px; border-radius: 50px; 
             border: none; background: #ecf0f1; color: #2c3e50; 
-            font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.3)</button>
-    </div>
+    <div id="ui"><button id="startBtn">ЗАПУСТИТЬ ШАРИК (v3.4)</button></div>
 
     <div id="field">
-        <div id="ball" style="left: 0; top: 0;"></div>
+        <div id="ball"></div>
     </div>
 
     <script>
+        const field = document.getElementById('field');
         const ball = document.getElementById('ball');
         const startBtn = document.getElementById('startBtn');
         
-        let x = window.innerWidth / 2;
-        let y = window.innerHeight / 2;
-        let vx = 0; let vy = 0; 
-        let ax = 0; let ay = 0; 
-
-        const friction = 0.98; 
-        const sensitivity = 0.08;
-        const vThreshold = 1.0; // Порог вибрации
-
-        // ВАЖНО: Константы размеров для точности
+        // Внутренние размеры поля (без рамок)
+        let w, h;
         const r = 20; // Радиус шарика
-        const border = 8; // Толщина рамки из CSS
+        
+        let x, y, vx = 0, vy = 0, ax = 0, ay = 0;
+        const friction = 0.98;
+        const sensitivity = 0.08;
+
+        function updateSize() {
+            w = field.clientWidth;
+            h = field.clientHeight;
+            x = w / 2;
+            y = h / 2;
+        }
+
+        window.addEventListener('resize', updateSize);
+        updateSize();
 
         startBtn.addEventListener('click', async () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') init();
-            } else {
-                init();
-            }
+                const res = await DeviceOrientationEvent.requestPermission();
+                if (res === 'granted') init();
+            } else { init(); }
             startBtn.style.display = 'none';
         });
 
@@ -85,53 +78,21 @@
         }
 
         function vibrate(speed) {
-            if (navigator.vibrate && Math.abs(speed) > vThreshold) {
-                navigator.vibrate(15);
-            }
+            if (navigator.vibrate && Math.abs(speed) > 1.0) navigator.vibrate(15);
         }
 
         function animate() {
-            vx += ax;
-            vy += ay;
-            vx *= friction;
-            vy *= friction;
-            
-            if (Math.abs(vx) < 0.01) vx = 0;
-            if (Math.abs(vy) < 0.01) vy = 0;
+            vx += ax; vy += ay;
+            vx *= friction; vy *= friction;
+            x += vx; y += vy;
 
-            x += vx;
-            y += vy;
+            // Теперь границы считаются от 0 до w/h внутреннего пространства
+            if (x < r) { vibrate(vx); x = r; vx *= -0.6; }
+            if (x > w - r) { vibrate(vx); x = w - r; vx *= -0.6; }
+            if (y < r) { vibrate(vy); y = r; vy *= -0.6; }
+            if (y > h - r) { vibrate(vy); y = h - r; vy *= -0.6; }
 
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-
-            // ИСПРАВЛЕННАЯ ЛОГИКА ГРАНИЦ (с учетом рамки)
-            
-            // Лево: радиус + рамка
-            if (x < r + border) { 
-                vibrate(vx); 
-                x = r + border; 
-                vx *= -0.6; 
-            }
-            // Право: ширина - радиус - рамка
-            if (x > w - r - border) { 
-                vibrate(vx); 
-                x = w - r - border; 
-                vx *= -0.6; 
-            }
-            // Верх: радиус + рамка
-            if (y < r + border) { 
-                vibrate(vy); 
-                y = r + border; 
-                vy *= -0.6; 
-            }
-            // Низ: высота - радиус - рамка
-            if (y > h - r - border) { 
-                vibrate(vy); 
-                y = h - r - border; 
-                vy *= -0.6; 
-            }
-
+            // Отрисовка: x и y — это центр, поэтому вычитаем радиус
             ball.style.transform = `translate(${x - r}px, ${y - r}px)`;
             requestAnimationFrame(animate);
         }
